@@ -62,9 +62,6 @@ sudo apt install -y jellyfin
 sudo systemctl enable --now jellyfin
 
 echo "📁 Setting up media directories..."
-sudo mkdir -p /home/$USER/Downloads/{Movies,TV\ Shows,Music,Books}
-sudo chown -R $USER:$USER /home/$USER/Downloads
-sudo chmod -R 755 /home/$USER/Downloads
 sudo usermod -a -G $USER jellyfin
 sudo systemctl restart jellyfin
 
@@ -82,9 +79,34 @@ source ~/.bashrc
 
 echo "⚡ Setting up qBittorrent-nox..."
 
-sudo useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/qbittorrent-nox --create-home qbittorrent-nox
+# Create system user if it doesn't exist
+if ! id "qbittorrent-nox" &>/dev/null; then
+    sudo useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/qbittorrent-nox --create-home qbittorrent-nox
+fi
+
+# Create required directories with proper structure
 sudo mkdir -p /var/lib/qbittorrent-nox/.config/qBittorrent
 sudo mkdir -p /var/lib/qbittorrent-nox/.local/share/qBittorrent/logs
+sudo mkdir -p /var/lib/qbittorrent-nox/Downloads/{Movies,TV\ Shows,Music,Books}
+
+# Copy binary to system location where service expects it
+sudo cp ~/bin/qbittorrent-nox /usr/local/bin/
+sudo chmod +x /usr/local/bin/qbittorrent-nox
+
+# Set proper ownership and permissions
+sudo chown -R qbittorrent-nox:qbittorrent-nox /var/lib/qbittorrent-nox
+sudo chmod 775 /var/lib/qbittorrent-nox/Downloads
+
+# Add current user to qbittorrent-nox group for shared access
+sudo usermod -a -G qbittorrent-nox $USER
+
+# Create symlink from user Downloads to shared directory
+if [ ! -L ~/Downloads ]; then
+    if [ -d ~/Downloads ]; then
+        mv ~/Downloads ~/Downloads.old.$(date +%Y%m%d_%H%M%S)
+    fi
+    ln -s /var/lib/qbittorrent-nox/Downloads ~/Downloads
+fi
 
 echo "🔧 Setting up systemd service..."
 sudo curl -fsSL https://gist.githubusercontent.com/Bhavya031/958301e7315284f035e67d5e8472c84b/raw -o /etc/systemd/system/qbittorrent-nox.service
@@ -93,11 +115,24 @@ echo "🌐 Applying system-level performance optimizations..."
 sudo curl -fsSL https://gist.githubusercontent.com/Bhavya031/f5c1ef36decd60509532dd8c4b1929b5/raw -o /etc/sysctl.d/99-qbittorrent-performance.conf
 
 sudo sysctl -p /etc/sysctl.d/99-qbittorrent-performance.conf
-sudo chown -R qbittorrent-nox:qbittorrent-nox /var/lib/qbittorrent-nox
 sudo systemctl daemon-reload
 sudo systemctl enable qbittorrent-nox
 
-echo "ℹ️  qBittorrent-nox installed. Use state management scripts to restore configuration."
+# Start the service to verify it works
+echo "🚀 Starting qBittorrent-nox service..."
+sudo systemctl start qbittorrent-nox
+
+# Wait a moment and check service status
+sleep 3
+if sudo systemctl is-active --quiet qbittorrent-nox; then
+    echo "✅ qBittorrent-nox service started successfully!"
+else
+    echo "⚠️  Service may have issues. Check with: sudo systemctl status qbittorrent-nox"
+fi
+
+echo "ℹ️  qBittorrent-nox installed and configured. WebUI available at http://localhost:5879"
+echo "📁 Shared media directories created in /var/lib/qbittorrent-nox/Downloads/"
+echo "🔗 Your ~/Downloads now links to the shared directory"
 
 echo "☁️  Installing cloudflared..."
 sudo mkdir -p --mode=0755 /usr/share/keyrings
