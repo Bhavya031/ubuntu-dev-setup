@@ -4,13 +4,29 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 
 ## 📁 Files Overview
 
-### Core Scripts
-- **`state_manager.sh`** - Main interface for all state management operations
-- **`upload_state.sh`** - Creates and uploads application state backups
-- **`download_state.sh`** - Downloads and restores application states
-- **`smart_backup.sh`** - Intelligent backup with change detection
-- **`smart_restore.sh`** - Interactive restore with component selection
-- **`sync_downloads.sh`** - High-performance Downloads folder synchronization
+### Main Interface
+- **`state_manager.sh`** - Unified interface for all operations
+
+### 📱 Config/State Management Scripts
+- **`config_backup.sh`** - Quick backup of application configurations
+- **`config_restore.sh`** - Quick restore of application configurations
+- **`config_smart_backup.sh`** - Intelligent backup with change detection
+- **`config_smart_restore.sh`** - Interactive restore with component selection
+
+### 📁 Downloads Management Scripts
+- **`downloads_manager.sh`** - Complete Downloads folder management (files, folders, sync)
+
+## 📋 File Naming Convention
+
+### **`config_*` files** = Application configurations (small, frequent)
+- Jellyfin settings, qBittorrent configs, Cloudflared certificates
+- Quick backup/restore (~4MB, ~11 seconds)
+- Handles: databases, settings, user configs, system configs
+
+### **`downloads_*` files** = Large media files (big, occasional)  
+- Movies, TV shows, music, books from Downloads folder
+- High-performance sync (~26+ MiB/s)
+- Handles: selective downloads, folder management, bulk operations
 
 ## 🎯 What Gets Managed
 
@@ -54,14 +70,13 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 # Force upload all Downloads (no questions, overwrite existing)
 ./state_manager.sh force-downloads
 
-# Smart sync Downloads folder
-./state_manager.sh sync-downloads sync
-
-# Upload Downloads folder
-./state_manager.sh sync-downloads upload
-
-# Download Downloads folder
-./state_manager.sh sync-downloads download
+# OR use downloads manager directly:
+./downloads_manager.sh force-upload          # Force upload all (no questions)
+./downloads_manager.sh download-folders      # Select specific folders
+./downloads_manager.sh download-select       # Select specific files
+./downloads_manager.sh sync                  # Smart two-way sync
+./downloads_manager.sh list-files           # List available files
+./downloads_manager.sh list-folders         # List available folders
 ```
 
 ## 📊 Performance Optimizations
@@ -82,8 +97,10 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 
 ### Environment Variables
 ```bash
-# State management buckets
+# Config/State management bucket (small files)
 export GCP_STATE_BUCKET=vm-states-india          # Default: vm-states-india
+
+# Downloads management bucket (large media files)  
 export GCP_DOWNLOADS_BUCKET=vm-downloads-india   # Default: vm-downloads-india
 
 # VM identification
@@ -127,6 +144,34 @@ gcloud config set project YOUR_PROJECT_ID
   - ☁️ Cloudflared (tunnels, certificates)
   - ⚙️ User configs (shell, tools)
   - 🔧 System configs (services, performance)
+
+### Downloads Manager Commands
+
+#### `downloads_manager.sh force-upload`
+- **No questions asked** - uploads everything
+- **Overwrites existing files** in bucket
+- **High-performance** parallel upload (26+ MiB/s)
+- Perfect for bulk operations
+
+#### `downloads_manager.sh download-folders`
+- **Interactive folder selection**
+- Choose specific folders: Movies, Music, TV Shows, Books
+- **Preserves folder structure** exactly
+- Example: Select "1,3" to download Movies and Music folders
+
+#### `downloads_manager.sh download-select`
+- **Interactive file selection**
+- Choose specific files from any folder
+- **Individual file control**
+- Example: Select "2,5,7" to download specific movies
+
+#### `downloads_manager.sh list-folders`
+- Shows all available folders with file counts
+- Example: "📁 Movies/ (15 files)"
+
+#### `downloads_manager.sh list-files`
+- Shows all available files with folder organization
+- Example: "📁 Movies/ 📄 movie_name.mkv (2.1GB)"
 
 ### Downloads Sync Commands
 
@@ -228,27 +273,42 @@ gsutil -o "GSUtil:parallel_thread_count=64" -o "GSUtil:parallel_process_count=32
 
 ### Regular Backup
 ```bash
-# Quick backup
+# Quick config backup
 ./state_manager.sh backup
 
-# Smart backup (recommended)
+# Smart config backup (recommended - detects changes)
 ./state_manager.sh smart-backup
 
-# Backup Downloads
+# Force upload all Downloads (no questions)
 ./state_manager.sh force-downloads
+
+# OR selective Downloads management:
+./downloads_manager.sh download-folders    # Choose specific folders to download
+./downloads_manager.sh download-select     # Choose specific files to download
 ```
 
 ### New VM Setup
-1. Run setup script: `../setup_tools.sh` (auto-restores states)
-2. Restore Downloads: `./state_manager.sh sync-downloads download`
+1. Run setup script: `../setup_tools.sh` (auto-restores configs)
+2. Restore Downloads: 
+   ```bash
+   # Download everything
+   ./downloads_manager.sh download
+   
+   # OR be selective:
+   ./downloads_manager.sh download-folders    # Choose folders
+   ./downloads_manager.sh download-select     # Choose files
+   ```
 
 ### Selective Operations
 ```bash
-# Only restore specific components
+# Only restore specific config components
 ./state_manager.sh smart-restore --latest
 
-# Only sync specific Downloads changes
-./state_manager.sh sync-downloads sync
+# Selective Downloads management
+./downloads_manager.sh list-folders         # See available folders
+./downloads_manager.sh download-folders     # Download specific folders
+./downloads_manager.sh list-files          # See available files  
+./downloads_manager.sh download-select     # Download specific files
 ```
 
 ## 📈 Performance Metrics

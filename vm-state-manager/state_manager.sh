@@ -6,11 +6,11 @@ set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UPLOAD_SCRIPT="$SCRIPT_DIR/upload_state.sh"
-DOWNLOAD_SCRIPT="$SCRIPT_DIR/download_state.sh"
-SMART_BACKUP_SCRIPT="$SCRIPT_DIR/smart_backup.sh"
-SMART_RESTORE_SCRIPT="$SCRIPT_DIR/smart_restore.sh"
-SYNC_DOWNLOADS_SCRIPT="$SCRIPT_DIR/sync_downloads.sh"
+CONFIG_BACKUP_SCRIPT="$SCRIPT_DIR/config_backup.sh"
+CONFIG_RESTORE_SCRIPT="$SCRIPT_DIR/config_restore.sh"
+CONFIG_SMART_BACKUP_SCRIPT="$SCRIPT_DIR/config_smart_backup.sh"
+CONFIG_SMART_RESTORE_SCRIPT="$SCRIPT_DIR/config_smart_restore.sh"
+DOWNLOADS_MANAGER_SCRIPT="$SCRIPT_DIR/downloads_manager.sh"
 
 show_help() {
     cat << EOF
@@ -86,33 +86,33 @@ list_backups() {
 case "${1:-help}" in
     backup)
         shift
-        echo "🔄 Starting backup process..."
-        "$UPLOAD_SCRIPT" "$@"
+        echo "🔄 Starting config backup process..."
+        "$CONFIG_BACKUP_SCRIPT" "$@"
         ;;
     smart-backup)
         shift
-        echo "🧠 Starting smart backup process..."
-        "$SMART_BACKUP_SCRIPT" "$@"
+        echo "🧠 Starting smart config backup process..."
+        "$CONFIG_SMART_BACKUP_SCRIPT" "$@"
         ;;
     restore)
         shift
-        echo "🔄 Starting restore process..."
-        "$DOWNLOAD_SCRIPT" "$@"
+        echo "🔄 Starting config restore process..."
+        "$CONFIG_RESTORE_SCRIPT" "$@"
         ;;
     smart-restore)
         shift
-        echo "🧠 Starting smart restore process..."
-        "$SMART_RESTORE_SCRIPT" "$@"
+        echo "🧠 Starting smart config restore process..."
+        "$CONFIG_SMART_RESTORE_SCRIPT" "$@"
         ;;
     sync-downloads)
         shift
         echo "📁 Starting Downloads sync..."
-        "$SYNC_DOWNLOADS_SCRIPT" "$@"
+        "$DOWNLOADS_MANAGER_SCRIPT" "$@"
         ;;
     force-downloads)
         shift
         echo "🚀 Starting force Downloads upload..."
-        "$SYNC_DOWNLOADS_SCRIPT" force-upload "$@"
+        "$DOWNLOADS_MANAGER_SCRIPT" force-upload "$@"
         ;;
     list)
         shift
