@@ -37,12 +37,11 @@ RESTORE EXAMPLES:
     $0 restore --backup filename.tar.gz # Restore from specific backup
     
 LIST EXAMPLES:
-    $0 list                            # List all backups for current VM
+    $0 list                            # List all backups for current system
     $0 list --all                      # List all backups in bucket
 
 ENVIRONMENT VARIABLES:
     GCP_STATE_BUCKET    GCP bucket name (default: vm-states-india)
-    VM_NAME             VM identifier (default: hostname)
 
 SETUP:
     Before first use, ensure:
@@ -53,8 +52,7 @@ EOF
 }
 
 list_backups() {
-    local BUCKET_NAME="${GCP_STATE_BUCKET:-vm-states-backup}"
-    local VM_NAME="${VM_NAME:-$(hostname)}"
+    local BUCKET_NAME="${GCP_STATE_BUCKET:-vm-states-india}"
     local SHOW_ALL=false
     
     while [[ $# -gt 0 ]]; do
@@ -71,15 +69,14 @@ list_backups() {
     done
     
     echo "📦 Bucket: gs://${BUCKET_NAME}"
-    echo "🖥️  VM: ${VM_NAME}"
     echo ""
     
     if [ "$SHOW_ALL" = true ]; then
         echo "📋 All backups in bucket:"
         gsutil ls -l "gs://${BUCKET_NAME}/" | grep "\.tar\.gz$" || echo "No backups found"
     else
-        echo "📋 Backups for VM '$VM_NAME':"
-        gsutil ls -l "gs://${BUCKET_NAME}/${VM_NAME}_state_*.tar.gz" || echo "No backups found for this VM"
+        echo "📋 Backups for current system:"
+        gsutil ls -l "gs://${BUCKET_NAME}/state_*.tar.gz" || echo "No backups found"
     fi
 }
 

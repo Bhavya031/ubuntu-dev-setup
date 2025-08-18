@@ -7,7 +7,6 @@ set -e
 
 # Configuration
 BUCKET_NAME="${GCP_STATE_BUCKET:-vm-states-india}"
-VM_NAME="${VM_NAME:-$(hostname)}"
 RESTORE_DIR="/tmp/vm_smart_restore_$(date +%Y%m%d_%H%M%S)"
 
 # Parse command line arguments
@@ -24,10 +23,7 @@ while [[ $# -gt 0 ]]; do
             SPECIFIC_BACKUP="$2"
             shift 2
             ;;
-        --vm-name)
-            VM_NAME="$2"
-            shift 2
-            ;;
+
         --bucket)
             BUCKET_NAME="$2"
             shift 2
@@ -37,8 +33,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --latest           Restore from latest backup"
             echo "  --backup NAME      Restore from specific backup file"
-            echo "  --vm-name NAME     Specify VM name (default: hostname)"
-            echo "  --bucket NAME      Specify bucket name (default: vm-states-backup)"
+echo "  --bucket NAME      Specify bucket name (default: vm-states-india)"
             echo "  -h, --help         Show this help message"
             exit 0
             ;;
@@ -51,19 +46,19 @@ done
 
 echo "🧠 Smart Restore: Choose what to restore..."
 echo "📦 Bucket: gs://${BUCKET_NAME}"
-echo "🖥️  VM: ${VM_NAME}"
+echo "🕐 Restoring from backup"
 
 # Determine which backup to download
 if [ "$USE_LATEST" = true ]; then
-    BACKUP_FILE="${VM_NAME}_state_latest.tar.gz"
+    BACKUP_FILE="state_latest.tar.gz"
     echo "📥 Using latest backup"
 elif [ -n "$SPECIFIC_BACKUP" ]; then
     BACKUP_FILE="$SPECIFIC_BACKUP"
     echo "📥 Using specific backup: $BACKUP_FILE"
 else
     echo "📋 Available backups:"
-    gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_state_*.tar.gz" || {
-        echo "❌ No backups found for VM: $VM_NAME"
+    gsutil ls "gs://${BUCKET_NAME}/state_*.tar.gz" || {
+        echo "❌ No backups found"
         exit 1
     }
     echo ""

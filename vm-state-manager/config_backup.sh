@@ -7,14 +7,13 @@ set -e
 
 # Configuration
 BUCKET_NAME="${GCP_STATE_BUCKET:-vm-states-india}"
-VM_NAME="${VM_NAME:-$(hostname)}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/tmp/vm_state_backup_${TIMESTAMP}"
-ARCHIVE_NAME="${VM_NAME}_state_${TIMESTAMP}.tar.gz"
+ARCHIVE_NAME="state_${TIMESTAMP}.tar.gz"
 
 echo "🔄 Starting VM state backup..."
 echo "📦 Bucket: gs://${BUCKET_NAME}"
-echo "🖥️  VM: ${VM_NAME}"
+echo "🕐 Timestamp: ${TIMESTAMP}"
 
 # Create temporary backup directory
 mkdir -p "$BACKUP_DIR"
@@ -88,7 +87,6 @@ sudo chown -R $USER:$USER "$BACKUP_DIR/system_configs"
 echo "  📝 Creating state metadata..."
 cat > "$BACKUP_DIR/state_metadata.json" << EOF
 {
-  "vm_name": "$VM_NAME",
   "backup_timestamp": "$TIMESTAMP",
   "backup_date": "$(date -Iseconds)",
   "hostname": "$(hostname)",
@@ -116,7 +114,7 @@ gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NA
 gsutil cp "$ARCHIVE_NAME" "gs://${BUCKET_NAME}/"
 
 # Also upload as "latest" for easy access
-gsutil cp "$ARCHIVE_NAME" "gs://${BUCKET_NAME}/${VM_NAME}_state_latest.tar.gz"
+gsutil cp "$ARCHIVE_NAME" "gs://${BUCKET_NAME}/state_latest.tar.gz"
 
 # 9. Cleanup
 echo "🧹 Cleaning up temporary files..."
@@ -125,9 +123,9 @@ rm -f "$ARCHIVE_NAME"
 
 echo "✅ State backup completed successfully!"
 echo "📍 Backup location: gs://${BUCKET_NAME}/$ARCHIVE_NAME"
-echo "📍 Latest backup: gs://${BUCKET_NAME}/${VM_NAME}_state_latest.tar.gz"
+echo "📍 Latest backup: gs://${BUCKET_NAME}/state_latest.tar.gz"
 
 # Optional: List recent backups
 echo ""
 echo "📋 Recent backups:"
-gsutil ls -l "gs://${BUCKET_NAME}/${VM_NAME}_state_*.tar.gz" | tail -5
+gsutil ls -l "gs://${BUCKET_NAME}/state_*.tar.gz" | tail -5

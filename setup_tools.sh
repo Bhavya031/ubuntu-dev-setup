@@ -19,10 +19,14 @@ sudo apt install -y curl git apt-transport-https ca-certificates gnupg2
 echo "⭐ Installing Starship..."
 curl -sS https://starship.rs/install.sh | sh -s -- -y
 
-# Add Starship to bashrc if not already present
-if ! grep -q "starship init bash" ~/.bashrc; then
-    echo 'eval "$(starship init bash)"' >> ~/.bashrc
-    echo "✅ Added Starship to bashrc"
+# Safe Starship initialization with error handling
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init bash)" 2>/dev/null || true
+fi
+
+# Safe PATH export with error handling
+if [ -d "$HOME/bin" ]; then
+    export PATH="$HOME/bin:$PATH"
 fi
 
 # Install tmux

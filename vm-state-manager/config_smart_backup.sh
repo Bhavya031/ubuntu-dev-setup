@@ -7,25 +7,24 @@ set -e
 
 # Configuration
 BUCKET_NAME="${GCP_STATE_BUCKET:-vm-states-india}"
-VM_NAME="${VM_NAME:-$(hostname)}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 TEMP_DIR="/tmp/smart_backup_${TIMESTAMP}"
 
 echo "🧠 Smart Backup: Analyzing changes..."
 echo "📦 Bucket: gs://${BUCKET_NAME}"
-echo "🖥️  VM: ${VM_NAME}"
+echo "🕐 Timestamp: ${TIMESTAMP}"
 
 # Create temp directory
 mkdir -p "$TEMP_DIR"
 
 # Download latest backup metadata if it exists
 LATEST_METADATA="$TEMP_DIR/latest_metadata.json"
-if gsutil cp "gs://${BUCKET_NAME}/${VM_NAME}_state_latest_metadata.json" "$LATEST_METADATA" 2>/dev/null; then
+if gsutil cp "gs://${BUCKET_NAME}/state_latest_metadata.json" "$LATEST_METADATA" 2>/dev/null; then
     echo "📋 Found previous backup metadata"
     
     # Extract previous file list
     PREV_BACKUP="$TEMP_DIR/prev_backup.tar.gz"
-    gsutil cp "gs://${BUCKET_NAME}/${VM_NAME}_state_latest.tar.gz" "$PREV_BACKUP"
+    gsutil cp "gs://${BUCKET_NAME}/state_latest.tar.gz" "$PREV_BACKUP"
     cd "$TEMP_DIR"
     tar -tzf "prev_backup.tar.gz" > prev_files.txt
     cd - >/dev/null
