@@ -66,17 +66,19 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 ```
 
 ### Downloads Management
+**Note: Downloads operations require sudo permissions for file system access.**
+
 ```bash
 # Force upload all Downloads (no questions, overwrite existing)
-./state_manager.sh force-downloads
+sudo ./state_manager.sh force-downloads
 
 # OR use downloads manager directly:
-./downloads_manager.sh force-upload          # Force upload all (no questions)
-./downloads_manager.sh download-folders      # Select specific folders
-./downloads_manager.sh download-select       # Select specific files
-./downloads_manager.sh sync                  # Smart two-way sync
-./downloads_manager.sh list-files           # List available files
-./downloads_manager.sh list-folders         # List available folders
+sudo ./downloads_manager.sh force-upload          # Force upload all (no questions)
+sudo ./downloads_manager.sh download-folders      # Select specific folders
+sudo ./downloads_manager.sh download-select       # Select specific files
+sudo ./downloads_manager.sh sync                  # Smart two-way sync
+sudo ./downloads_manager.sh list-files           # List available files
+sudo ./downloads_manager.sh list-folders         # List available folders
 ```
 
 ## 📊 Performance Optimizations
@@ -241,6 +243,7 @@ Each state backup includes:
 - Consider adjusting parallel thread counts
 
 **Permission errors:**
+- Downloads operations require sudo: `sudo ./state_manager.sh force-downloads`
 - Run `gcloud auth login` to re-authenticate
 - Check project permissions: `gcloud config get-value project`
 
@@ -269,7 +272,7 @@ gsutil -o "GSUtil:parallel_thread_count=64" -o "GSUtil:parallel_process_count=32
 1. Run main setup script: `../setup_tools.sh`
 2. Configure applications manually (Jellyfin libraries, qBittorrent settings)
 3. Create initial backup: `./state_manager.sh backup`
-4. Upload Downloads: `./state_manager.sh force-downloads`
+4. Upload Downloads: `sudo ./state_manager.sh force-downloads`
 
 ### Regular Backup
 ```bash
@@ -280,11 +283,11 @@ gsutil -o "GSUtil:parallel_thread_count=64" -o "GSUtil:parallel_process_count=32
 ./state_manager.sh smart-backup
 
 # Force upload all Downloads (no questions)
-./state_manager.sh force-downloads
+sudo ./state_manager.sh force-downloads
 
 # OR selective Downloads management:
-./downloads_manager.sh download-folders    # Choose specific folders to download
-./downloads_manager.sh download-select     # Choose specific files to download
+sudo ./downloads_manager.sh download-folders    # Choose specific folders to download
+sudo ./downloads_manager.sh download-select     # Choose specific files to download
 ```
 
 ### New VM Setup
@@ -292,11 +295,11 @@ gsutil -o "GSUtil:parallel_thread_count=64" -o "GSUtil:parallel_process_count=32
 2. Restore Downloads: 
    ```bash
    # Download everything
-   ./downloads_manager.sh download
+   sudo ./downloads_manager.sh download
    
    # OR be selective:
-   ./downloads_manager.sh download-folders    # Choose folders
-   ./downloads_manager.sh download-select     # Choose files
+   sudo ./downloads_manager.sh download-folders    # Choose folders
+   sudo ./downloads_manager.sh download-select     # Choose files
    ```
 
 ### Selective Operations
@@ -305,10 +308,10 @@ gsutil -o "GSUtil:parallel_thread_count=64" -o "GSUtil:parallel_process_count=32
 ./state_manager.sh smart-restore --latest
 
 # Selective Downloads management
-./downloads_manager.sh list-folders         # See available folders
-./downloads_manager.sh download-folders     # Download specific folders
-./downloads_manager.sh list-files          # See available files  
-./downloads_manager.sh download-select     # Download specific files
+sudo ./downloads_manager.sh list-folders         # See available folders
+sudo ./downloads_manager.sh download-folders     # Download specific folders
+sudo ./downloads_manager.sh list-files          # See available files  
+sudo ./downloads_manager.sh download-select     # Download specific files
 ```
 
 ## 📈 Performance Metrics

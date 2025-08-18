@@ -104,12 +104,12 @@ case "${1:-help}" in
     sync-downloads)
         shift
         echo "📁 Starting Downloads sync..."
-        "$DOWNLOADS_MANAGER_SCRIPT" "$@"
+        sudo "$DOWNLOADS_MANAGER_SCRIPT" "$@"
         ;;
     force-downloads)
         shift
         echo "🚀 Starting force Downloads upload..."
-        "$DOWNLOADS_MANAGER_SCRIPT" force-upload "$@"
+        sudo "$DOWNLOADS_MANAGER_SCRIPT" force-upload "$@"
         ;;
     list)
         shift

@@ -60,18 +60,18 @@ upload_downloads() {
     fi
     
     # Create bucket if it doesn't exist (in India region for better performance)
-    gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
+    sudo gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
     
     # Create manifest of current files
     echo "📋 Creating file manifest..."
-    find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
+    sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
     
     # Upload manifest
-    gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
+    sudo gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
     
     # Sync Downloads folder with optimized parallel settings
     echo "🔄 Syncing Downloads folder with high-performance settings..."
-    gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
            -o "GSUtil:parallel_composite_upload_threshold=10M" \
            -o "GSUtil:parallel_composite_upload_component_size=10M" \
            -m rsync -r -d "$DOWNLOADS_DIR" "gs://${BUCKET_NAME}/${VM_NAME}_downloads/"
@@ -93,19 +93,19 @@ force_upload_downloads() {
     fi
     
     # Create bucket if it doesn't exist (in India region for better performance)
-    gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
+    sudo gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
     
     # Force upload everything with overwrite, no questions asked
     echo "🔄 Force uploading all Downloads with high-performance settings..."
-    gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
            -o "GSUtil:parallel_composite_upload_threshold=10M" \
            -o "GSUtil:parallel_composite_upload_component_size=10M" \
            -m cp -r "$DOWNLOADS_DIR"/* "gs://${BUCKET_NAME}/${VM_NAME}_downloads/"
     
     # Create and upload manifest
     echo "📋 Creating and uploading file manifest..."
-    find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
-    gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
+    sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
+    sudo gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
     rm -f "/tmp/downloads_manifest_${TIMESTAMP}.txt"
     
     echo "✅ Force upload completed! All files uploaded and existing files overwritten."
@@ -122,19 +122,19 @@ download_downloads() {
         exit 1
     fi
     
-    # Create Downloads directory if it doesn't exist
-    mkdir -p "$DOWNLOADS_DIR"
+    # Create Downloads directory if it doesn't exist (with sudo for permissions)
+    sudo mkdir -p "$DOWNLOADS_DIR"
     
     # Download Downloads folder with optimized parallel settings
     echo "🔄 Syncing Downloads folder with high-performance settings..."
-    gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
            -o "GSUtil:sliced_object_download_threshold=10M" \
            -o "GSUtil:sliced_object_download_max_components=8" \
            -m rsync -r "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" "$DOWNLOADS_DIR"
     
     # Fix permissions
-    chown -R $USER:$USER "$DOWNLOADS_DIR"
-    chmod -R 755 "$DOWNLOADS_DIR"
+    sudo chown -R $USER:$USER "$DOWNLOADS_DIR"
+    sudo chmod -R 755 "$DOWNLOADS_DIR"
     
     echo "✅ Downloads download completed!"
 }
@@ -146,7 +146,7 @@ smart_sync() {
     REMOTE_MANIFEST="/tmp/remote_manifest_${TIMESTAMP}.txt"
     LOCAL_MANIFEST="/tmp/local_manifest_${TIMESTAMP}.txt"
     
-    if gsutil cp "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt" "$REMOTE_MANIFEST" 2>/dev/null; then
+    if sudo gsutil cp "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt" "$REMOTE_MANIFEST" 2>/dev/null; then
         echo "📋 Found remote manifest"
     else
         echo "📋 No remote manifest found, will upload everything"
@@ -156,7 +156,7 @@ smart_sync() {
     
     # Create local manifest
     if [ -d "$DOWNLOADS_DIR" ]; then
-        find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "$LOCAL_MANIFEST"
+        sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "$LOCAL_MANIFEST"
     else
         touch "$LOCAL_MANIFEST"
     fi
@@ -205,7 +205,7 @@ list_downloads() {
     echo "🖥️  VM: ${VM_NAME}"
     echo ""
     echo "📋 Downloads backups:"
-    gsutil ls -l "gs://${BUCKET_NAME}/${VM_NAME}_downloads*" 2>/dev/null || echo "No Downloads backups found"
+    sudo gsutil ls -l "gs://${BUCKET_NAME}/${VM_NAME}_downloads*" 2>/dev/null || echo "No Downloads backups found"
 }
 
 list_files() {
@@ -213,13 +213,13 @@ list_files() {
     echo "🖥️  VM: ${VM_NAME}"
     echo ""
     
-    if ! gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" &>/dev/null; then
+    if ! sudo gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" &>/dev/null; then
         echo "❌ No Downloads backup found for VM: $VM_NAME"
         exit 1
     fi
     
     echo "📋 Available files for download:"
-    gsutil ls -l -r "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | grep -v "/$" | while read -r line; do
+    sudo gsutil ls -l -r "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | grep -v "/$" | while read -r line; do
         # Extract file path and size
         size=$(echo "$line" | awk '{print $1}')
         path=$(echo "$line" | awk '{print $3}')
@@ -245,7 +245,7 @@ download_select() {
     # Get list of available files (only actual files, not directories)
     echo "📋 Available files:"
     TEMP_LIST="/tmp/available_files_$(date +%Y%m%d_%H%M%S).txt"
-    gsutil ls -r "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | grep -v "/$" | grep -v "^$" > "$TEMP_LIST"
+    sudo gsutil ls -r "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | grep -v "/$" | grep -v "^$" > "$TEMP_LIST"
     
     # Filter out only files with actual content (not empty lines or directory markers)
     FILTERED_LIST="/tmp/filtered_files_$(date +%Y%m%d_%H%M%S).txt"
@@ -284,7 +284,7 @@ download_select() {
     fi
     
     # Create Downloads directory if it doesn't exist
-    mkdir -p "$DOWNLOADS_DIR"
+    sudo mkdir -p "$DOWNLOADS_DIR"
     
     # Parse selection and download files
     echo "📥 Downloading selected files..."
@@ -299,8 +299,8 @@ download_select() {
             if [ -n "$file_path" ]; then
                 echo "  📥 $(basename "$file_path")"
                 local_path=$(echo "$file_path" | sed "s|.*${VM_NAME}_downloads|$DOWNLOADS_DIR|")
-                mkdir -p "$(dirname "$local_path")"
-                gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                sudo mkdir -p "$(dirname "$local_path")"
+                sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
                        -o "GSUtil:sliced_object_download_threshold=10M" \
                        -o "GSUtil:sliced_object_download_max_components=8" \
                        cp "$file_path" "$local_path"
@@ -314,8 +314,8 @@ download_select() {
                 if [ -n "$file_path" ]; then
                     echo "  📥 $(basename "$file_path")"
                     local_path=$(echo "$file_path" | sed "s|.*${VM_NAME}_downloads|$DOWNLOADS_DIR|")
-                    mkdir -p "$(dirname "$local_path")"
-                    gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                    sudo mkdir -p "$(dirname "$local_path")"
+                    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
                            -o "GSUtil:sliced_object_download_threshold=10M" \
                            -o "GSUtil:sliced_object_download_max_components=8" \
                            cp "$file_path" "$local_path"
@@ -325,8 +325,8 @@ download_select() {
     done
     
     # Fix permissions
-    chown -R $USER:$USER "$DOWNLOADS_DIR"
-    chmod -R 755 "$DOWNLOADS_DIR"
+    sudo chown -R $USER:$USER "$DOWNLOADS_DIR"
+    sudo chmod -R 755 "$DOWNLOADS_DIR"
     
     rm -f "$TEMP_LIST"
     echo "✅ Selected files downloaded successfully!"
@@ -337,7 +337,7 @@ list_folders() {
     echo "🖥️  VM: ${VM_NAME}"
     echo ""
     
-    if ! gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" &>/dev/null; then
+    if ! sudo gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" &>/dev/null; then
         echo "❌ No Downloads backup found for VM: $VM_NAME"
         exit 1
     fi
@@ -345,12 +345,12 @@ list_folders() {
     echo "📁 Available folders for download:"
     
     # Get unique folders
-    gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | while read -r folder_path; do
+    sudo gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | while read -r folder_path; do
         if [[ "$folder_path" == */ ]]; then
             folder_name=$(basename "$folder_path" | sed 's|/$||')
             if [ -n "$folder_name" ]; then
                 # Count files in folder
-                file_count=$(gsutil ls -r "$folder_path" | grep -v "/$" | wc -l)
+                file_count=$(sudo gsutil ls -r "$folder_path" | grep -v "/$" | wc -l)
                 printf "  📁 %-20s (%d files)\n" "$folder_name/" "$file_count"
             fi
         fi
@@ -370,7 +370,7 @@ download_folders() {
     # Get list of available folders
     echo "📋 Available folders:"
     TEMP_FOLDERS="/tmp/available_folders_$(date +%Y%m%d_%H%M%S).txt"
-    gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | grep "/$" > "$TEMP_FOLDERS"
+    sudo gsutil ls "gs://${BUCKET_NAME}/${VM_NAME}_downloads/" | grep "/$" > "$TEMP_FOLDERS"
     
     # Show folders with numbers and file counts
     cat -n "$TEMP_FOLDERS" | while read -r num folder_path; do
@@ -394,7 +394,7 @@ download_folders() {
     fi
     
     # Create Downloads directory if it doesn't exist
-    mkdir -p "$DOWNLOADS_DIR"
+    sudo mkdir -p "$DOWNLOADS_DIR"
     
     # Parse selection and download folders
     echo "📥 Downloading selected folders..."
@@ -411,8 +411,8 @@ download_folders() {
                 echo "  📁 Downloading folder: $folder_name/"
                 
                 # Download entire folder with high performance settings
-                mkdir -p "$DOWNLOADS_DIR/$folder_name"
-                gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                sudo mkdir -p "$DOWNLOADS_DIR/$folder_name"
+                sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
                        -o "GSUtil:sliced_object_download_threshold=10M" \
                        -o "GSUtil:sliced_object_download_max_components=8" \
                        -m rsync -r "$folder_path" "$DOWNLOADS_DIR/$folder_name/"
@@ -428,8 +428,8 @@ download_folders() {
                     echo "  📁 Downloading folder: $folder_name/"
                     
                     # Download entire folder with high performance settings
-                    mkdir -p "$DOWNLOADS_DIR/$folder_name"
-                    gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                    sudo mkdir -p "$DOWNLOADS_DIR/$folder_name"
+                    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
                            -o "GSUtil:sliced_object_download_threshold=10M" \
                            -o "GSUtil:sliced_object_download_max_components=8" \
                            -m rsync -r "$folder_path" "$DOWNLOADS_DIR/$folder_name/"
@@ -439,8 +439,8 @@ download_folders() {
     done
     
     # Fix permissions
-    chown -R $USER:$USER "$DOWNLOADS_DIR"
-    chmod -R 755 "$DOWNLOADS_DIR"
+    sudo chown -R $USER:$USER "$DOWNLOADS_DIR"
+    sudo chmod -R 755 "$DOWNLOADS_DIR"
     
     rm -f "$TEMP_FOLDERS"
     echo "✅ Selected folders downloaded successfully with preserved structure!"
