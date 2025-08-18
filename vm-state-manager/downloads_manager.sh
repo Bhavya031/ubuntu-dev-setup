@@ -50,65 +50,123 @@ EOF
 }
 
 upload_downloads() {
-    echo "📤 Uploading Downloads folder..."
+    local SUBPATH="${2:-}"
+    local SOURCE_DIR="$DOWNLOADS_DIR"
+
+    if [ -n "$SUBPATH" ]; then
+        if [[ "$SUBPATH" = /* ]]; then
+            SOURCE_DIR="$SUBPATH"
+        else
+            SOURCE_DIR="$DOWNLOADS_DIR/$SUBPATH"
+        fi
+    fi
+
+    echo "📤 Uploading: $SOURCE_DIR"
     echo "📦 Bucket: gs://${BUCKET_NAME}"
-    echo "📁 Source: $DOWNLOADS_DIR"
-    
-    if [ ! -d "$DOWNLOADS_DIR" ]; then
-        echo "❌ Downloads directory not found: $DOWNLOADS_DIR"
+
+    if [ ! -e "$SOURCE_DIR" ]; then
+        echo "❌ Not found: $SOURCE_DIR"
         exit 1
     fi
-    
-    # Create bucket if it doesn't exist (in India region for better performance)
-    sudo gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
-    
-    # Create manifest of current files
-    echo "📋 Creating file manifest..."
-    sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
-    
-    # Upload manifest
-    sudo gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
-    
-    # Sync Downloads folder with optimized parallel settings
-    echo "🔄 Syncing Downloads folder with high-performance settings..."
-    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
-           -o "GSUtil:parallel_composite_upload_threshold=10M" \
-           -o "GSUtil:parallel_composite_upload_component_size=10M" \
-           -m rsync -r -d "$DOWNLOADS_DIR" "gs://${BUCKET_NAME}/${VM_NAME}_downloads/"
-    
-    # Cleanup
-    rm -f "/tmp/downloads_manifest_${TIMESTAMP}.txt"
-    
-    echo "✅ Downloads upload completed!"
+
+    sudo gsutil mb -p "$(gcloud config get-value project)" -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
+
+    # For full-folder uploads, create and upload a manifest
+    if [ -z "$SUBPATH" ]; then
+        echo "📋 Creating file manifest..."
+        sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
+        sudo gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
+    fi
+
+    if [ -f "$SOURCE_DIR" ]; then
+        base="$(basename "$SOURCE_DIR")"
+        parent_dir="$(dirname "$SOURCE_DIR")"
+        if [[ "$SOURCE_DIR" == "$DOWNLOADS_DIR"/* ]]; then
+            if [ "$parent_dir" = "$DOWNLOADS_DIR" ]; then
+                dest_path="gs://${BUCKET_NAME}/${VM_NAME}_downloads/${base}"
+            else
+                parent="$(basename "$parent_dir")"
+                dest_path="gs://${BUCKET_NAME}/${VM_NAME}_downloads/${parent}/${base}"
+            fi
+        else
+            dest_path="gs://${BUCKET_NAME}/${VM_NAME}_downloads/${base}"
+        fi
+        sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" -m cp "$SOURCE_DIR" "$dest_path"
+    else
+        if [ "$SOURCE_DIR" = "$DOWNLOADS_DIR" ]; then
+            sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                -o "GSUtil:parallel_composite_upload_threshold=10M" \
+                -o "GSUtil:parallel_composite_upload_component_size=10M" \
+                -m rsync -r -d "$SOURCE_DIR" "gs://${BUCKET_NAME}/${VM_NAME}_downloads/"
+        else
+            sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                -o "GSUtil:parallel_composite_upload_threshold=10M" \
+                -o "GSUtil:parallel_composite_upload_component_size=10M" \
+                -m rsync -r -d "$SOURCE_DIR" "gs://${BUCKET_NAME}/${VM_NAME}_downloads/$(basename "$SOURCE_DIR")/"
+        fi
+    fi
+
+    if [ -z "$SUBPATH" ]; then
+        rm -f "/tmp/downloads_manifest_${TIMESTAMP}.txt"
+    fi
+
+    echo "✅ Upload complete"
 }
 
 force_upload_downloads() {
-    echo "🚀 Force uploading Downloads folder (no questions, overwrite existing)..."
+    local SUBPATH="${2:-}"
+    local SOURCE_DIR="$DOWNLOADS_DIR"
+
+    if [ -n "$SUBPATH" ]; then
+        if [[ "$SUBPATH" = /* ]]; then
+            SOURCE_DIR="$SUBPATH"
+        else
+            SOURCE_DIR="$DOWNLOADS_DIR/$SUBPATH"
+        fi
+    fi
+
+    echo "🚀 Force uploading: $SOURCE_DIR (overwrite existing)"
     echo "📦 Bucket: gs://${BUCKET_NAME}"
-    echo "📁 Source: $DOWNLOADS_DIR"
-    
-    if [ ! -d "$DOWNLOADS_DIR" ]; then
-        echo "❌ Downloads directory not found: $DOWNLOADS_DIR"
+
+    if [ ! -e "$SOURCE_DIR" ]; then
+        echo "❌ Not found: $SOURCE_DIR"
         exit 1
     fi
-    
+
     # Create bucket if it doesn't exist (in India region for better performance)
-    sudo gsutil mb -p $(gcloud config get-value project) -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
-    
-    # Force upload everything with overwrite, no questions asked
-    echo "🔄 Force uploading all Downloads with high-performance settings..."
-    sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
-           -o "GSUtil:parallel_composite_upload_threshold=10M" \
-           -o "GSUtil:parallel_composite_upload_component_size=10M" \
-           -m cp -r "$DOWNLOADS_DIR"/* "gs://${BUCKET_NAME}/${VM_NAME}_downloads/"
-    
-    # Create and upload manifest
-    echo "📋 Creating and uploading file manifest..."
-    sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
-    sudo gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
-    rm -f "/tmp/downloads_manifest_${TIMESTAMP}.txt"
-    
-    echo "✅ Force upload completed! All files uploaded and existing files overwritten."
+    sudo gsutil mb -p "$(gcloud config get-value project)" -l asia-south1 "gs://${BUCKET_NAME}" 2>/dev/null || true
+
+    # Upload with overwrite semantics
+    if [ -f "$SOURCE_DIR" ]; then
+        parent="$(basename "$(dirname "$SOURCE_DIR")")"
+        base="$(basename "$SOURCE_DIR")"
+        sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+               -o "GSUtil:parallel_composite_upload_threshold=10M" \
+               -o "GSUtil:parallel_composite_upload_component_size=10M" \
+               -m cp "$SOURCE_DIR" "gs://${BUCKET_NAME}/${VM_NAME}_downloads/${parent}/${base}"
+    else
+        if [ "$SOURCE_DIR" = "$DOWNLOADS_DIR" ]; then
+            sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                   -o "GSUtil:parallel_composite_upload_threshold=10M" \
+                   -o "GSUtil:parallel_composite_upload_component_size=10M" \
+                   -m cp -r "$DOWNLOADS_DIR"/* "gs://${BUCKET_NAME}/${VM_NAME}_downloads/"
+        else
+            sudo gsutil -o "GSUtil:parallel_thread_count=32" -o "GSUtil:parallel_process_count=16" \
+                   -o "GSUtil:parallel_composite_upload_threshold=10M" \
+                   -o "GSUtil:parallel_composite_upload_component_size=10M" \
+                   -m rsync -r -d "$SOURCE_DIR" "gs://${BUCKET_NAME}/${VM_NAME}_downloads/$(basename "$SOURCE_DIR")/"
+        fi
+    fi
+
+    # Create and upload manifest only for full-force uploads
+    if [ -z "$SUBPATH" ]; then
+        echo "📋 Creating and uploading file manifest..."
+        sudo find "$DOWNLOADS_DIR" -type f -exec stat -c "%n|%s|%Y" {} \; > "/tmp/downloads_manifest_${TIMESTAMP}.txt"
+        sudo gsutil cp "/tmp/downloads_manifest_${TIMESTAMP}.txt" "gs://${BUCKET_NAME}/${VM_NAME}_downloads_manifest_latest.txt"
+        rm -f "/tmp/downloads_manifest_${TIMESTAMP}.txt"
+    fi
+
+    echo "✅ Force upload completed!"
 }
 
 download_downloads() {
@@ -448,10 +506,10 @@ download_folders() {
 
 case "${1:-help}" in
     upload)
-        upload_downloads
+        upload_downloads "$@"
         ;;
     force-upload)
-        force_upload_downloads
+        force_upload_downloads "$@"
         ;;
     download)
         download_downloads
@@ -461,6 +519,11 @@ case "${1:-help}" in
         ;;
     download-folders)
         download_folders
+        ;;
+    upload-folder)
+        select d in "$DOWNLOADS_DIR"/*/; do
+            [ -n "$d" ] && upload_downloads upload "$d" && break
+        done
         ;;
     sync)
         smart_sync
