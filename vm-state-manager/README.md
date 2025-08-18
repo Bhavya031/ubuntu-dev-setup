@@ -14,7 +14,7 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 - **`config_smart_restore.sh`** - Interactive restore with component selection
 
 ### 📁 Downloads Management Scripts
-- **`downloads_manager.sh`** - Complete Downloads folder management (files, folders, sync)
+- **`downloads_manager.sh`** - Complete Downloads folder management with parallel uploads (files, folders, sync)
 
 ## 📋 File Naming Convention
 
@@ -41,6 +41,7 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 - **Movies, TV Shows, Music, Books** - Handled separately for performance
 - **Smart sync** with change detection
 - **Force upload** option for bulk operations
+- **Parallel uploads** with multithreading for maximum speed
 
 ## 🚀 Quick Start
 
@@ -72,13 +73,18 @@ Complete state management system for Ubuntu development VMs with intelligent bac
 # Force upload all Downloads (no questions, overwrite existing)
 sudo ./state_manager.sh force-downloads
 
-# OR use downloads manager directly:
-sudo ./downloads_manager.sh force-upload          # Force upload all (no questions)
-sudo ./downloads_manager.sh download-folders      # Select specific folders
-sudo ./downloads_manager.sh download-select       # Select specific files
-sudo ./downloads_manager.sh sync                  # Smart two-way sync
-sudo ./downloads_manager.sh list-files           # List available files
-sudo ./downloads_manager.sh list-folders         # List available folders
+# OR use downloads manager directly for more control:
+sudo ./downloads_manager.sh lazy-upload          # Upload non-ignored files (overwrite existing)
+sudo ./downloads_manager.sh selective-upload     # Choose specific files/folders to upload
+sudo ./downloads_manager.sh selective-download   # Choose specific files/folders to download
+sudo ./downloads_manager.sh upload-all           # Upload everything (ignore tags respected)
+sudo ./downloads_manager.sh download-all         # Download everything from bucket
+sudo ./downloads_manager.sh list-remote          # List files available in bucket
+sudo ./downloads_manager.sh list-local           # List local files with status
+
+# Ignore file management:
+sudo ./downloads_manager.sh add-ignore "*.tmp"   # Add pattern to ignore
+sudo ./downloads_manager.sh show-ignore          # Show current ignore list
 ```
 
 ## 📊 Performance Optimizations
@@ -86,6 +92,7 @@ sudo ./downloads_manager.sh list-folders         # List available folders
 ### High-Speed Transfers
 - **32 parallel threads** for maximum throughput
 - **16 parallel processes** for CPU optimization
+- **Batch parallel uploads** with `gsutil -m cp` for multiple files
 - **Composite uploads** for files >10MB (automatic chunking)
 - **Sliced downloads** for large file downloads
 - **India region buckets** (asia-south1) for optimal performance from India
@@ -96,6 +103,25 @@ sudo ./downloads_manager.sh list-folders         # List available folders
 - **Regional optimization**: 2-3x faster than US region buckets
 
 ## 🔧 Configuration
+
+### Ignore File Management
+The script automatically creates a `.ignore_uploads` file in your Downloads directory to exclude certain files from uploads:
+
+```bash
+# Add patterns to ignore
+sudo ./downloads_manager.sh add-ignore "*.tmp"
+sudo ./downloads_manager.sh add-ignore "temp_folder"
+sudo ./downloads_manager.sh add-ignore "*.log"
+
+# Remove patterns from ignore list
+sudo ./downloads_manager.sh remove-ignore "*.tmp"
+
+# Show current ignore list
+sudo ./downloads_manager.sh show-ignore
+
+# Default ignore patterns (automatically created):
+# *.tmp, *.log, .temp, temp, cache
+```
 
 ### Environment Variables
 ```bash
@@ -149,31 +175,48 @@ gcloud config set project YOUR_PROJECT_ID
 
 ### Downloads Manager Commands
 
-#### `downloads_manager.sh force-upload`
-- **No questions asked** - uploads everything
+#### `downloads_manager.sh lazy-upload`
+- **Smart upload** - only uploads non-ignored files
 - **Overwrites existing files** in bucket
-- **High-performance** parallel upload (26+ MiB/s)
-- Perfect for bulk operations
+- **High-performance parallel upload** with batch processing
+- **Ignores files** based on `.ignore_uploads` patterns
+- Perfect for regular sync operations
 
-#### `downloads_manager.sh download-folders`
-- **Interactive folder selection**
-- Choose specific folders: Movies, Music, TV Shows, Books
+#### `downloads_manager.sh selective-upload`
+- **Interactive file selection** for uploads
+- Choose specific files/folders to upload
+- **Batch parallel processing** for multiple files
+- Options: upload all, upload new only, or select specific files
+- Example: Select "1,3,5" or "1-3" for specific files
+
+#### `downloads_manager.sh selective-download`
+- **Interactive file selection** for downloads
+- Choose specific files/folders to download
+- **Parallel download processing**
+- Options: download all or select specific files
+- Example: Select "1,3,5" or "1-3" for specific files
+
+#### `downloads_manager.sh upload-all`
+- **Uploads everything** (respects ignore list)
+- **Batch parallel processing** for maximum speed
+- **Ignores files** based on `.ignore_uploads` patterns
+- Perfect for complete sync operations
+
+#### `downloads_manager.sh download-all`
+- **Downloads everything** from bucket
+- **Parallel download processing**
 - **Preserves folder structure** exactly
-- Example: Select "1,3" to download Movies and Music folders
+- Perfect for complete restore operations
 
-#### `downloads_manager.sh download-select`
-- **Interactive file selection**
-- Choose specific files from any folder
-- **Individual file control**
-- Example: Select "2,5,7" to download specific movies
-
-#### `downloads_manager.sh list-folders`
-- Shows all available folders with file counts
-- Example: "📁 Movies/ (15 files)"
-
-#### `downloads_manager.sh list-files`
-- Shows all available files with folder organization
+#### `downloads_manager.sh list-remote`
+- Shows all available files in bucket with sizes
+- **Organized by folders** for easy navigation
 - Example: "📁 Movies/ 📄 movie_name.mkv (2.1GB)"
+
+#### `downloads_manager.sh list-local`
+- Shows local files with sync status
+- **Indicates which files are synced/ignored/new**
+- Example: "✅ synced_file.mkv (SYNCED)" or "📤 new_file.mkv (NEW)"
 
 ### Downloads Sync Commands
 
@@ -199,9 +242,28 @@ gcloud config set project YOUR_PROJECT_ID
 - Merges with existing local files
 - High-performance parallel download
 
-## 🏗️ Architecture
+## 🚀 New Features & Improvements
 
-### Bucket Structure
+### Parallel Upload System
+- **Batch Processing**: All upload functions now collect files first, then upload them all at once
+- **Multithreaded Uploads**: Uses `gsutil -m cp` for true parallel file processing
+- **32 Parallel Threads**: Maximum throughput with parallel_thread_count=32
+- **16 Parallel Processes**: CPU optimization with parallel_process_count=16
+- **Significantly Faster**: Multiple files uploaded simultaneously instead of one-by-one
+
+### Smart Ignore System
+- **`.ignore_uploads` File**: Automatically created in your Downloads directory
+- **Pattern-Based Ignoring**: Ignore files by pattern (e.g., `*.tmp`, `temp_folder`)
+- **Comment Support**: Lines starting with `#` are treated as comments
+- **Automatic Creation**: Script creates ignore file with common patterns if it doesn't exist
+
+### Enhanced File Management
+- **Status Tracking**: Shows which files are synced, new, or ignored
+- **Overwrite Protection**: Existing files are detected and can be overwritten
+- **Directory Preservation**: Maintains exact folder structure in cloud storage
+- **Permission Handling**: Automatically fixes file permissions after downloads
+
+## 🏗️ Architecture
 ```
 gs://vm-states-india/
 ├── {VM_NAME}_state_latest.tar.gz           # Latest backup

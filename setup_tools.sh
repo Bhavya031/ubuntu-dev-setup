@@ -58,9 +58,12 @@ echo "deb [signed-by=/etc/apt/trusted.gpg.d/jellyfin.gpg] https://repo.jellyfin.
 # Update package lists with Jellyfin repo
 sudo apt update
 
+# Install required packages
+echo "📦 Installing required packages..."
+sudo apt install -y jellyfin acl
+
 # Install Jellyfin
 echo "🎬 Installing Jellyfin..."
-sudo apt install -y jellyfin
 
 # Enable and start  service
 sudo systemctl enable --now jellyfin
@@ -89,60 +92,63 @@ if ! id "qbittorrent-nox" &>/dev/null; then
     sudo useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/qbittorrent-nox --create-home qbittorrent-nox
 fi
 
-# Create required directories with proper structure
+# Create required directories for qBittorrent service
 sudo mkdir -p /var/lib/qbittorrent-nox/.config/qBittorrent
 sudo mkdir -p /var/lib/qbittorrent-nox/.local/share/qBittorrent/logs
-sudo mkdir -p /var/lib/qbittorrent-nox/Downloads/{Movies,TV\ Shows,Music,Books}
 
 # Copy binary to system location where service expects it
 sudo cp ~/bin/qbittorrent-nox /usr/local/bin/
 sudo chmod +x /usr/local/bin/qbittorrent-nox
 
-# Set proper ownership and permissions
+# Set proper ownership and permissions for qBittorrent service
 sudo chown -R qbittorrent-nox:qbittorrent-nox /var/lib/qbittorrent-nox
 sudo chmod 2775 /var/lib/qbittorrent-nox
 sudo chgrp qbittorrent-nox /var/lib/qbittorrent-nox
-sudo chmod 2775 /var/lib/qbittorrent-nox/Downloads
-sudo find /var/lib/qbittorrent-nox/Downloads -type d -exec chmod 2775 {} \;
 sudo setfacl -m g:qbittorrent-nox:rx /var/lib/qbittorrent-nox
-sudo setfacl -R -m g:qbittorrent-nox:rwx -m d:g:qbittorrent-nox:rwx /var/lib/qbittorrent-nox/Downloads
 
 # Add current user to qbittorrent-nox group for shared access
 sudo usermod -a -G qbittorrent-nox $USER
 
-# Create symlink from user Downloads to shared directory
-if [ ! -L ~/Downloads ]; then
-    if [ -d ~/Downloads ]; then
-        mv ~/Downloads ~/Downloads.old.$(date +%Y%m%d_%H%M%S)
-    fi
-    ln -s /var/lib/qbittorrent-nox/Downloads ~/Downloads
+echo "📁 Downloads folder setup"
+echo "ℹ️  qBittorrent will use your regular Downloads folder (~/Downloads)"
+echo "💡 You can configure download location in qBittorrent WebUI settings"
+
+# Set up proper permissions for Downloads folder so qBittorrent can write to it
+echo "🔐 Setting up Downloads folder permissions..."
+if [ ! -d ~/Downloads ]; then
+    mkdir -p ~/Downloads
+    echo "✅ Created Downloads folder"
 fi
 
-echo "🔧 Setting up systemd service..."
-sudo curl -fsSL https://gist.githubusercontent.com/Bhavya031/958301e7315284f035e67d5e8472c84b/raw -o /etc/systemd/system/qbittorrent-nox.service
+# Set proper permissions and ownership for Downloads folder
+sudo chmod 2775 ~/Downloads
+sudo chown $USER:qbittorrent-nox ~/Downloads
+sudo setfacl -R -m g:qbittorrent-nox:rwx -m d:g:qbittorrent-nox:rwx ~/Downloads
 
-echo "🌐 Applying system-level performance optimizations..."
-sudo curl -fsSL https://gist.githubusercontent.com/Bhavya031/f5c1ef36decd60509532dd8c4b1929b5/raw -o /etc/sysctl.d/99-qbittorrent-performance.conf
+# Ensure qBittorrent can access the home directory to reach Downloads
+sudo setfacl -m g:qbittorrent-nox:rx ~/
 
-sudo sysctl -p /etc/sysctl.d/99-qbittorrent-performance.conf
-sudo systemctl daemon-reload
-sudo systemctl enable qbittorrent-nox
+echo "✅ Downloads folder permissions configured for qBittorrent access"
 
-# Start the service to verify it works
-echo "🚀 Starting qBittorrent-nox service..."
-sudo systemctl start qbittorrent-nox
-
-# Wait a moment and check service status
-sleep 3
-if sudo systemctl is-active --quiet qbittorrent-nox; then
-    echo "✅ qBittorrent-nox service started successfully!"
+# Test if qBittorrent can write to Downloads folder
+echo "🧪 Testing qBittorrent write access to Downloads folder..."
+if sudo -u qbittorrent-nox touch ~/Downloads/test_qbittorrent_access.tmp 2>/dev/null; then
+    sudo rm ~/Downloads/test_qbittorrent_access.tmp
+    echo "✅ qBittorrent can successfully write to Downloads folder"
 else
-    echo "⚠️  Service may have issues. Check with: sudo systemctl status qbittorrent-nox"
+    echo "⚠️  Warning: qBittorrent write access test failed"
+    echo "💡 You may need to manually check permissions"
 fi
+
+echo "🔧 qBittorrent binary installed to /usr/local/bin/"
+echo "💡 Create systemd service manually or restore from state backup"
+echo "💡 State manager can restore service configuration: ./vm-state-manager/state_manager.sh restore --latest"
+
+echo "🚀 qBittorrent-nox binary ready for use"
+echo "💡 To run as service, create systemd service file or restore from backup"
 
 echo "ℹ️  qBittorrent-nox installed and configured. WebUI available at http://localhost:5879"
-echo "📁 Shared media directories created in /var/lib/qbittorrent-nox/Downloads/"
-echo "🔗 Your ~/Downloads now links to the shared directory"
+echo "📁 Downloads folder remains separate - configure download location in qBittorrent WebUI"
 
 echo "☁️  Installing cloudflared..."
 sudo mkdir -p --mode=0755 /usr/share/keyrings
@@ -174,6 +180,5 @@ echo ""
 echo "📋 List backups:"
 echo "  cd $(dirname "$0") && ./vm-state-manager/state_manager.sh list"
 echo ""
-echo "🔄 Auto-restoring your saved state..."
-cd "$(dirname "$0")"
-./vm-state-manager/state_manager.sh restore --latest
+echo "💡 To restore a previous state:"
+echo "  cd $(dirname "$0") && ./vm-state-manager/state_manager.sh restore --latest"
