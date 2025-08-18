@@ -13,7 +13,7 @@ sudo apt update
 
 # Install dependencies
 echo "📋 Installing required dependencies..."
-sudo apt install -y curl git apt-transport-https ca-certificates gnupg2
+sudo apt install -y curl git apt-transport-https ca-certificates gnupg2 acl
 
 # Install Starship
 echo "⭐ Installing Starship..."
@@ -66,7 +66,8 @@ sudo apt install -y jellyfin
 sudo systemctl enable --now jellyfin
 
 echo "📁 Setting up media directories..."
-sudo usermod -a -G $USER jellyfin
+sudo usermod -a -G jellyfin $USER
+sudo usermod -a -G qbittorrent-nox jellyfin
 sudo systemctl restart jellyfin
 
 # Install btop
@@ -99,7 +100,12 @@ sudo chmod +x /usr/local/bin/qbittorrent-nox
 
 # Set proper ownership and permissions
 sudo chown -R qbittorrent-nox:qbittorrent-nox /var/lib/qbittorrent-nox
-sudo chmod 775 /var/lib/qbittorrent-nox/Downloads
+sudo chmod 2775 /var/lib/qbittorrent-nox
+sudo chgrp qbittorrent-nox /var/lib/qbittorrent-nox
+sudo chmod 2775 /var/lib/qbittorrent-nox/Downloads
+sudo find /var/lib/qbittorrent-nox/Downloads -type d -exec chmod 2775 {} \;
+sudo setfacl -m g:qbittorrent-nox:rx /var/lib/qbittorrent-nox
+sudo setfacl -R -m g:qbittorrent-nox:rwx -m d:g:qbittorrent-nox:rwx /var/lib/qbittorrent-nox/Downloads
 
 # Add current user to qbittorrent-nox group for shared access
 sudo usermod -a -G qbittorrent-nox $USER
